@@ -1,0 +1,9 @@
+{
+    "columns": [{
+        "columnName": "RowID",
+        "dataType": "Num",
+        "defaultValue": "0",
+        "mandatory": true
+    }],
+    "maxRowId": 0
+}
