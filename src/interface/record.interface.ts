@@ -1,4 +1,4 @@
 export default interface IRecord {
-    cells: Record<string, any>;
-    children: IRecord[];
+    data: Record<string, any>;
+    children?: IRecord[];
 }

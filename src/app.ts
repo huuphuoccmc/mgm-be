@@ -5,12 +5,13 @@ class App {
   public app: Application;
   public port: number;
  
-  constructor(controllers: Controller[], middlewares: (Handler)[], port: number) {
+  constructor(controllers: Controller[], middlewares: (any)[], port: number, errorHandlers: any[] = []) {
     this.app = express();
     this.port = port;
  
     this.initializeMiddlewares(middlewares);
     this.initializeControllers(controllers);
+    this.inititalizeErrorHandler(errorHandlers);
   }
  
   private initializeMiddlewares(middlewares: (Handler)[]) {
@@ -24,7 +25,9 @@ class App {
       this.app.use(controller.path, controller.router);
     });
   }
- 
+  private inititalizeErrorHandler(errorHandlers: any[]) {
+    errorHandlers.forEach(e => this.app.use(e));
+  }
   public listen() {
     this.app.listen(this.port, () => {
       console.log(`App listening on the port ${this.port}`);

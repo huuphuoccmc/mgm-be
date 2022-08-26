@@ -18,8 +18,8 @@ export default class ColumnController extends Controller {
     this.router.put("/lock", this.acquireLock);
   }
   async getColumns(req: Request, res: Response) {
-    const records = await columnRepo.getColumns();
-    res.json({ code: 0, data: records });
+    const columns = await columnRepo.getColumns();
+    res.json({ code: 0, data: columns });
   }
   async createColumn(req: Request, res: Response) {
     const { columnInfo } = req.body;

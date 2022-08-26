@@ -1,7 +1,7 @@
 export default interface IColumnInfo {
     columnName: string;
     dataType: string;
-    defaultValue: string;
+    defaultValue: any;
     mandatory: boolean;
     ddlValues?: string[];
 }

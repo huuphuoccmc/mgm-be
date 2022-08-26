@@ -1,9 +1,1 @@
-{
-    "columns": [{
-        "columnName": "RowID",
-        "dataType": "Num",
-        "defaultValue": "0",
-        "mandatory": true
-    }],
-    "maxRowId": 0
-}
+{"columns":[{"columnName":"RowID","mandatory":true,"dataType":"Num","defaultValue":0},{"columnName":"Full Name","mandatory":true,"dataType":"Text","defaultValue":"Full Name"},{"columnName":"Name","mandatory":true,"dataType":"Text","defaultValue":"Name"}],"rows":[{"data":{"RowID":1,"Full Name":"Full Name","Name":"Name"},"children":[{"data":{"RowID":2,"Full Name":"Full Name","Name":"Name"},"children":[{"data":{"RowID":3,"Full Name":"Full Name","Name":"Name"}}]}]},{"data":{"RowID":4,"Full Name":"Full Name","Name":"Name"}}],"maxRowId":4}
