@@ -133,6 +133,7 @@ class EnumDataType implements IDataType {
         return {
             dataType: EnumDataType.SYMBOL,
             defaultValue: this.defaultValue,
+            ddlValues: this.ddlValues,
         }
     }
     getSymbol() {

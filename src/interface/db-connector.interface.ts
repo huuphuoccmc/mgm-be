@@ -1,4 +1,4 @@
 export default interface IDbConnector {
-    save(data: Record<string, any>): void;
-    load(): Record<string, any>;
+    save(data: Record<string, any>): Promise<void>;
+    load(): Promise<Record<string, any>>;
 }

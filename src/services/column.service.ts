@@ -22,7 +22,7 @@ export default class Column {
     }
 
     static isPrimaryName(name: string) {
-        return name = "RowID";
+        return name == "RowID";
     }
 
     static isExceptionName(name: string) {

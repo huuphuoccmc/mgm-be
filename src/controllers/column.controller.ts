@@ -26,17 +26,10 @@ export default class ColumnController extends Controller {
     await columnRepo.createColumn(columnInfo);
     res.json({ code: 0, message: "Success" });
   }
-  changeColumn(req: Request, res: Response) {
-    const userId = +req.session.id;
-    const tabId = req.query.tabId || 1;
-    if (!this.lock.compare(userId, +tabId)) {
-      throw new LockingResourceError(this.lock, LockType.Col);
-    }
-
+  async changeColumn(req: Request, res: Response) {
     const { columnName, columnInfo } = req.body;
-    columnRepo.changeColumn(columnName, columnInfo);
+    await columnRepo.changeColumn(columnName, columnInfo);
 
-    this.lock.release()
     res.json({ code: 0, message: "Success" });
   }
   acquireLock(req: Request, res: Response) {

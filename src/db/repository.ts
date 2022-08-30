@@ -3,7 +3,57 @@ import IDbConnector from "@interfaces/db-connector.interface";
 import IRecord from "@interfaces/record.interface";
 import Column from "@services/column.service";
 import Row from "@services/row.service";
+import errors from "@shared/errors";
 import Graceful from "node-graceful";
+
+let columns: IColumnInfo[] = [];
+const rowMap = new Map<number, IRecord>();
+let maxRowId = 0;
+let startRowId = 0;
+
+const loadData = async (dbConnector: IDbConnector) => {
+  const data = await dbConnector.load();
+  columns = data.columns;
+  maxRowId = data.maxRowId;
+  startRowId = data.startRowId;
+  loadRowData(data.rows, rowMap);
+}
+
+const loadRowData = (data: any, rowMap: Map<number, IRecord>, parentId?: number) => {
+  data.forEach((e: any, index: number) => {
+    const rowData = { ...e };
+    rowData.children = e.children ? e.children.map((child: any) => child.RowID) : [];
+    if (data[index - 1])
+      rowData.previousId = data[index - 1].RowID;
+    if (data[index + 1])
+      rowData.nextId = data[index + 1].RowID;
+    if (parentId)
+      rowData.parentId = parentId;
+    rowMap.set(e.RowID, rowData);
+    loadRowData(e.children, rowMap, e.RowID);
+  });
+}
+
+const getRowData = (rowMap: Map<number, IRecord>, rowId: number): IRecord => {
+  const rowData = rowMap.get(rowId);
+  if (!rowData) {
+    throw errors.RowNotFound;
+  }
+
+  rowData.children = rowData.children.map((childId: number ) => getRowData(childId));
+  return rowData;
+}
+
+const getRowsData = (rowMap: Map<number, IRecord>, startRowId: number, limit: number) => {
+
+}
+
+const saveData = async (dbConnector: IDbConnector) => {
+  await dbConnector.save({
+    rows: getRowsData(),
+    columns,
+  })
+}
 
 export default class Repository {
   private dbConnector: IDbConnector;

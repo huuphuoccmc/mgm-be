@@ -1,114 +1,156 @@
-import IRecord from "@interfaces/record.interface";
-import Column from "./column.service";
+import IColumnInfo from "@interfaces/column.interface";
+import IRecord, { IRecordModel } from "@interfaces/record.interface";
+import errors from "@shared/errors";
 
-export default class Row {
-    static MAX_LEVEL = 3;
-    data: Record<string, any>;
-    level: number;
-    childHead?: Row;
-    next?: Row;
-    previous?: Row;
-    parent?: Row;
-    last?: Row;
+const MAX_LEVEL = 3;
+const rowMap = new Map<number, IRecord>();
+let rowHeadId = 0;
+let maxRowId = 0;
 
-    constructor(record: IRecord, level: number = 1, next?: Row, parent?: Row, previous?: Row) {
-        if (level > Row.MAX_LEVEL) throw "Reach limit parent-child level";
-        if (record.children && record.children[0]) {
-            this.childHead = new Row(record.children[0], level + 1, undefined, this);
-            let current = this.childHead;
-            for (let i = 1; i < record.children.length; i++) {
-                const temp = new Row(record.children[i], level + 1, undefined, this, current);
-                current.next = temp;
-                current = temp;
-            }
-            this.childHead.last = current;
-        }
-        this.data = record.data;
-        this.level = level;
-        this.parent = parent;
-        this.next = next;
-        this.previous = previous;
-    }
-
-    toRawData(): IRecord[] {
-        return [
-            {
-                data: this.data,
-                children: this.childHead?.toRawData(),
-            },
-            ...(this.next?.toRawData() || []),
-        ];
-    }
-
-    toRecord(): IRecord {
-        return {
-            data: this.data,
-        }
-    }
-    addNext(record: IRecord) {
-        const temp = this.next;
-        this.next = new Row(record, this.level);
-        this.next.next = temp;
-    }
-
-    addChild(record: IRecord) {
-        if (this.level === Row.MAX_LEVEL) throw "Reach limit parent-child level";
-        if (!this.childHead) {
-            this.childHead = new Row(record, this.level + 1, undefined, this);
-            this.childHead.last = this.childHead;
-        }
-
-        this.childHead.last?.addNext(record);
-    }
-
-    isValidParent() {
-        return this.level === Row.MAX_LEVEL;
-    }
-
-    isParent() {
-        return this.childHead != undefined;
-    }
-
-    find(rowId: number): Row | undefined {
-        let current: Row | undefined = this;
-        while (current) {
-            if (current.data.RowID == rowId)
-                return current;
-            current = current.next;
-        }
-
-        if (!this.childHead) {
-            return;
-        }
-        return this.childHead.find(rowId);
-    }
-
-    onChangeColumn(oldColumn: Column, newColumn: Column) {
-        let current: Row | undefined = this;
-        const isChangeColumnName = newColumn.columnName !== oldColumn.columnName;
-        const isChangeDataType = newColumn.dataType.getSymbol() !== oldColumn.dataType.getSymbol();
-        while (current) {
-            current.data[newColumn.columnName] = isChangeDataType ? newColumn.dataType.cast(current.data[oldColumn.columnName]) : current.data[oldColumn.columnName];
-            if (isChangeColumnName) {
-                delete current.data[oldColumn.columnName];
-            }
-            current = current.next;
-        }
-
-        this.childHead?.onChangeColumn(oldColumn, newColumn);
-    }
-
-    onAddColumn(newColumn: Column) {
-        let current: Row | undefined = this;
-        while (current) {
-            current.data[newColumn.columnName] = newColumn.dataType.defaultValue;
-            current = current.next;
-        }
-
-        this.childHead?.onAddColumn(newColumn);
-    }
-
-    updateData(newData: Record<string, any>) {
-        this.data = newData;
-    }
+const loadRow = (data: any[], level: number = 1, parentId?: number) => {
+    data.forEach((e: any, index: number) => {
+        rowMap.set(e.data.RowID, {
+            data: e.data,
+            children: e.children ? e.children.map((child: any) => child.data.RowID) : [],
+            previousId: data[index - 1]?.data?.data.RowID,
+            nextId: data[index + 1]?.data?.data.RowID,
+            parentId,
+            level,
+        });
+        if (e.children)
+            loadRow(e.children, level + 1, e.data.RowID);
+    });
 }
+
+const getRow = (rowId: number): IRecord => {
+    const rowData = rowMap.get(rowId);
+    if (!rowData) {
+        throw errors.RowNotFound;
+    }
+    return rowData;
+}
+
+const getRowData = (rowId: number): IRecordModel => {
+    const row = getRow(rowId);
+    return {
+        data: row.data,
+        children: row.children.map((childId: number) => getRowData(childId)),
+    };
+}
+
+const getRowsData = (startRowId: number = rowHeadId, limit: number = Infinity): IRecordModel[] => {
+    let row = getRow(startRowId);
+    const result = [getRowData(startRowId)];
+
+    let count = 1;
+    while (row.nextId && count < limit) {
+        result.push(getRowData(row.nextId));
+        row = getRow(row.nextId);
+        count++;
+    };
+
+    return result;
+}
+
+const addNext = (rowId: number, data: Record<string, any>, isNewRow: boolean = true) => {
+    const row = getRow(rowId);
+    const newRow: IRecord = {
+        data,
+        children: [],
+        level: row.level,
+    };
+    if (isNewRow) newRow.data.RowID = ++maxRowId;
+    if (row.nextId) {
+        const nextRow = getRow(row.nextId);
+        newRow.nextId = row.nextId
+        nextRow.previousId = newRow.data.RowID;
+    }
+    if (row.parentId) {
+        const parentRow = getRow(row.parentId);
+        newRow.parentId = parentRow.data.RowID;
+        parentRow.children.splice(parentRow.children.indexOf(row.data.RowID), 0, newRow.data.RowID);
+    }
+    newRow.level = row.level;
+    newRow.previousId = row.data.RowID;
+    row.nextId = newRow.data.RowID;
+    rowMap.set(newRow.data.RowID, newRow);
+}
+const addChild = (rowId: number, data: Record<string, any>, isNewRow: boolean = true) => {
+    const row = getRow(rowId);
+    if (row.level + 1 > MAX_LEVEL) {
+        throw errors.MaxRowLevel;
+    }
+    if (row.children && row.children[0]) {
+        addNext(row.children[row.children.length - 1], data, isNewRow);
+        return;
+    }
+    const newRow: IRecord = {
+        data,
+        children: [],
+        level: row.level + 1,
+    };
+    if (isNewRow) newRow.data.RowID = ++maxRowId;
+    newRow.parentId = rowId;
+    row.children.push(newRow.data.RowID);
+    rowMap.set(newRow.data.RowID, newRow);
+}
+
+const removeRow = (rowId: number) => {
+    const row = getRow(rowId);
+    if (row.children)
+        throw errors.LeadToOrphanRow;
+
+    if (row.nextId) {
+        getRow(row.nextId).previousId = row.previousId;
+    }
+
+    if (row.previousId) {
+        getRow(row.previousId)
+    }
+
+    if (row.parentId) {
+        const parentRow = getRow(row.parentId);
+        parentRow.children.splice(parentRow.children.indexOf(rowId), 1);
+    }
+    rowMap.delete(rowId);
+}
+
+const moveAsChild = (rowId: number, parentId: number) => {
+    const parent = getRow(parentId);
+    if (parent.level === MAX_LEVEL) throw errors.MaxRowLevel;
+
+    const row = getRow(rowId);
+    removeRow(rowId);
+    addChild(parentId, row.data, false);
+}
+
+const moveAsNext = (rowId: number, previousId: number) => {
+    getRow(previousId);
+    const row = getRow(rowId);
+
+    removeRow(rowId);
+    addNext(previousId, row.data, false);
+}
+
+const validateRowData = (data: Record<string, any>, columns: IColumnInfo[], validateData: (columnInfo: IColumnInfo, value: any) => void) => {
+    columns.forEach(col => {
+        validateData(col, data[col.columnName]);
+    });
+
+    Object.keys(data).map(key => {
+        if(!columns.find(col => col.columnName === key))
+            throw errors.InvalidRowData;
+    });
+}
+
+export default {
+    loadRow,
+    getRowData,
+    getRowsData,
+    addNext,
+    addChild,
+    removeRow,
+    moveAsChild,
+    moveAsNext,
+    validateRowData,
+} as const;
