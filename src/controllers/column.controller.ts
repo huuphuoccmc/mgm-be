@@ -1,44 +1,36 @@
-import { Request, Response, Handler } from "express";
-import { Controller } from "./controllers";
-import columnRepo from "@repos/column-repo";
-import { LockingResourceError, LockType } from "@shared/errors";
-import ILock from "@interfaces/lock.interface";
+import { Request, Response, Router } from "express";
+import columnService from "@services/column.service";
+import dataTypeService from "@services/data-type.service";
+import errors from "@shared/errors";
+import rowService from "@services/row.service";
+const router = Router();
 
-export default class ColumnController extends Controller {
-  lock: ILock;
-  constructor(path: string, middlewares: Handler[] = [], lock: ILock) {
-    super(path, middlewares);
-    this.lock = lock;
-    this.initializeRouter();
-  }
-  public initializeRouter() {
-    this.router.get("/", this.getColumns);
-    this.router.post("/", this.createColumn);
-    this.router.put("/", this.changeColumn);
-    this.router.put("/lock", this.acquireLock);
-  }
-  async getColumns(req: Request, res: Response) {
-    const columns = await columnRepo.getColumns();
-    res.json({ code: 0, data: columns });
-  }
-  async createColumn(req: Request, res: Response) {
-    const { columnInfo } = req.body;
-    await columnRepo.createColumn(columnInfo);
-    res.json({ code: 0, message: "Success" });
-  }
-  async changeColumn(req: Request, res: Response) {
-    const { columnName, columnInfo } = req.body;
-    await columnRepo.changeColumn(columnName, columnInfo);
+router.get("/", (req: Request, res: Response) => {
+  res.json(columnService.getColumns())
+});
 
-    res.json({ code: 0, message: "Success" });
-  }
-  acquireLock(req: Request, res: Response) {
-    if (this.lock.isAcquired())
-      throw new LockingResourceError(this.lock, LockType.Col);
-    const userId = +req.session.id;
-    const tabId = req.query.tabId || 1;
-    this.lock?.lock({ userId, tabId: +tabId });
+router.post("/", (req: Request, res: Response) => {
+  const { columnInfo } = req.body;
+  if (!dataTypeService.isValidDataType(columnInfo.dataType))
+    throw errors.InvalidDataType;
+  columnService.addColumn(columnInfo);
+  rowService.onAddColumn(columnInfo);
+  res.json({ code: 0, message: "Success" });
+});
 
-    res.json({ code: 0, message: "Success" });
-  }
-}
+router.put("/", (req: Request, res: Response) => {
+  const { oldColumnName, columnInfo } = req.body;
+  if (!dataTypeService.isValidDataType(columnInfo.dataType))
+    throw errors.InvalidDataType;
+  const oldColumn = columnService.editColumn(oldColumnName, columnInfo);
+  rowService.onUpdateColumn(oldColumn, columnInfo, dataTypeService.castData);
+});
+
+router.delete("/", (req: Request, res: Response) => {
+  const { columnName } = req.body;
+  columnService.deleteColumn(columnName);
+  rowService.onDeleteColumn(columnName);
+  res.json({ code: 0, message: "Success" });
+});
+
+export default router;

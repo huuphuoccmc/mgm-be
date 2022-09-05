@@ -1,31 +1,55 @@
 import IColumnInfo from "@interfaces/column.interface";
-import { IDataType } from "@interfaces/data-type.interface";
-import DataTypeFactory from "@services/data-type.service";
+import errors from "@shared/errors";
 
-export default class Column {
-    columnName: string;
-    dataType: IDataType;
-    mandatory: boolean;
+let columns: Map<string, IColumnInfo> = new Map();
 
-    constructor(columnInfo: IColumnInfo) {
-        this.dataType = DataTypeFactory.createDataType(columnInfo);
-        this.columnName = columnInfo.columnName;
-        this.mandatory = columnInfo.mandatory;
+const PRIMARY_NAME = "RowID";
+const isPrimary = (col: IColumnInfo) => col.columnName === PRIMARY_NAME;
+const loadColumn = (data: IColumnInfo[]) => {
+    data.forEach(col => columns.set(col.columnName, col));
+};
+
+const getColumns = () => [...columns.values()];
+
+const getColumn = columns.get;
+
+const addColumn = (col: IColumnInfo) => {
+    if (columns.has(col.columnName)) {
+        throw errors.DuplicateColumnName;
     }
-
-    toRawData(): IColumnInfo {
-        return {
-            columnName: this.columnName,
-            mandatory: this.mandatory,
-            ...this.dataType.toRawData(),
-        }
-    }
-
-    static isPrimaryName(name: string) {
-        return name == "RowID";
-    }
-
-    static isExceptionName(name: string) {
-        return ["children", "RowID"].includes(name);
-    }
+    columns.set(col.columnName, col);
 }
+
+const editColumn = (oldColumnName: string, newColumn: IColumnInfo) => {
+    const oldColumn = getColumn(oldColumnName);
+    if (!oldColumn || isPrimary(oldColumn))
+        throw errors.InvalidColumnName;
+    if (oldColumnName !== newColumn.columnName && columns.has(newColumn.columnName)) {
+        throw errors.DuplicateColumnName;
+    }
+    if (oldColumnName !== newColumn.columnName) {
+        columns.delete(oldColumnName);
+    }
+    columns.set(newColumn.columnName, newColumn);
+    return oldColumn;
+}
+
+const deleteColumn = (columnName: string) => {
+    const column = columns.get(columnName);
+    if(!column)
+        throw errors.ColumnNotFound;
+    if (isPrimary(column)) {
+        throw errors.InvalidColumnName;
+    }
+    columns.delete(columnName);
+}
+
+export default {
+    getColumn,
+    getColumns,
+    addColumn,
+    editColumn,
+    loadColumn,
+    isPrimary,
+    deleteColumn,
+} as const;

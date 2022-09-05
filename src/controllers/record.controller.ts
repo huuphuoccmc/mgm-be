@@ -1,60 +1,53 @@
-import recordRepo from "@repos/record-repo";
-import { Router, Request, Response, Handler } from "express";
-import { Controller } from "./controllers";
+import columnService from "@services/column.service";
+import dataTypeService from "@services/data-type.service";
+import rowService from "@services/row.service";
+import { Request, Response, Router } from "express";
 
-export default class RecordController extends Controller {
-    constructor(path: string, middlewares: Handler[] = []) {
-        super(path, middlewares)
-        this.initializeRouter();
-    }
-    public initializeRouter() {
-        this.router.get("/", this.getRecords);
-        this.router.post("/next", this.createNextRecord);
-        this.router.post("/child", this.createChildRecord);
-        this.router.put("/", this.changeRecord);
-        this.router.put("/move/next", this.moveAsNext);
-        this.router.put("/move/child", this.moveAsChild);
-        this.router.delete("/", this.deleteRecord);
-        this.router.put("/lock", this.acquireLock)
-    }
-    async deleteRecord(req: Request, res: Response) {
-        const { rowId } = req.body;
-        await recordRepo.deleteRecord(rowId);
-        res.send({ code: 0, message: "Success" });
-    }
-    async moveAsChild(req: Request, res: Response) {
-        const { rowId, oldRowId } = req.body;
-        await recordRepo.moveAsChild(rowId, oldRowId);
-        res.send({ code: 0, message: "Success" });
-    }
-    async moveAsNext(req: Request, res: Response) {
-        const { rowId, oldRowId } = req.body;
-        await recordRepo.moveAsNext(rowId, oldRowId);
-        res.send({ code: 0, message: "Success" });
-    }
-    acquireLock(req: Request, res: Response) {
-        res.send("Method not implemented.");
-    }
-    async createNextRecord(req: Request, res: Response) {
-        const { rowId, record } = req.body;
-        const id = await recordRepo.createNextRecord(rowId, record);
-        res.send({ code: 0, data: { rowId: id } });
-    }
-    async createChildRecord(req: Request, res: Response) {
-        const { rowId, record } = req.body;
-        const id = await recordRepo.createChildRecord(rowId, record);
-        res.send({ code: 0, data: { rowId: id } });
-    }
-    async changeRecord(req: Request, res: Response) {
-        const { rowId, record } = req.body;
-        await recordRepo.changeRecord(rowId, record);
-        res.send({ code: 0, message: "Success" });
-    }
-    async getRecords(req: Request, res: Response) {
-        const page = +(req.query.page || 1) || 1;
-        const pageSize = +(req.query.pageSize || 10) || 10;
+const router = Router();
 
-        const records = await recordRepo.getRecords(page, pageSize);
-        res.json({ code: 0, data: records });
-    }
+const validateRecord = (record: any) => 
+    rowService.validateRowData(record, columnService.getColumns().filter(col => !columnService.isPrimary(col)), dataTypeService.validateData);
+router.get("/", (req: Request, res: Response) => {
+    const lastRowId = req.query.lastRowId ? +req.query.lastRowId : undefined;
+    const pageSize = req.query.pageSize ? +req.query.pageSize : 10;
+
+    const records = rowService.getRowsData(lastRowId, pageSize);
+    res.json({ code: 0, data: records });
+});
+router.post("/next", (req: Request, res: Response) => {
+    const { rowId, record } = req.body;
+    validateRecord(record);
+    const id = rowService.addNext(rowId, record);
+    res.send({ code: 0, data: { rowId: id } });
+});
+router.post("/child", (req: Request, res: Response) => {
+    const { rowId, record } = req.body;
+    validateRecord(record);
+    const id = rowService.addChild(rowId, record);
+    res.send({ code: 0, data: { rowId: id } });
 }
+);
+router.put("/", (req: Request, res: Response) => {
+    const { record } = req.body;
+    validateRecord(record);
+    rowService.editRow(record);
+    res.send({ code: 0, message: "Success" });
+});
+router.put("/move/next", (req: Request, res: Response) => {
+    const { rowId, oldRowId } = req.body;
+    rowService.moveAsNext(rowId, oldRowId);
+    res.send({ code: 0, message: "Success" });
+});
+router.put("/move/child", (req: Request, res: Response) => {
+    const { parentId, rowId } = req.body;
+    rowService.moveAsChild(rowId, parentId);
+    res.send({ code: 0, message: "Success" });
+});
+
+router.delete("/", (req: Request, res: Response) => {
+    const { rowId } = req.body;
+    rowService.removeRow(rowId);
+    res.send({ code: 0, message: "Success" });
+});
+
+export default router;

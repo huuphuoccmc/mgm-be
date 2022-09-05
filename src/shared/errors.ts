@@ -4,6 +4,10 @@ export interface IErrorModel {
 }
 
 const errors = {
+    Unknown: {
+        code: -1,
+        message: "Something went wrong",
+    },
     RowNotFound: {
         code: -100,
         message: "Row Not Found",
@@ -18,7 +22,23 @@ const errors = {
     },
     InvalidRowData: {
         code: -103,
-        message: ""
+        message: "Invalid row data"
+    },
+    DuplicateColumnName: {
+        code: -200,
+        message: "",
+    },
+    InvalidColumnName: {
+        code: -201,
+        message: "",
+    },
+    InvalidDataType: {
+        code: -300,
+        message: "",
+    },
+    ColumnNotFound: {
+        code: -301,
+        message: "",
     }
 } as const;
 

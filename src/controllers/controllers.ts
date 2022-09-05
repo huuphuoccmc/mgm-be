@@ -1,15 +1,9 @@
-import { Handler, IRouter, Router } from "express";
+import { Router } from "express";
+import columnController from "@controllers/column.controller";
+import recordController from "@controllers/record.controller";
+const router = Router();
 
-export abstract class Controller {
-  path: string;
-  router: IRouter = Router();
+router.use("/column", columnController);
+router.use("/record", recordController);
 
-  constructor(path: string, middlewares: Handler[] = []) {
-    this.path = path;
-    this.initializeMiddlewares(middlewares);
-  }
-
-  public initializeMiddlewares(middlewares: Handler[] = []) {
-    middlewares.forEach((mdw) => this.router.use(mdw));
-  }
-}
+export default router;

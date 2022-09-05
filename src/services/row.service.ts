@@ -12,8 +12,8 @@ const loadRow = (data: any[], level: number = 1, parentId?: number) => {
         rowMap.set(e.data.RowID, {
             data: e.data,
             children: e.children ? e.children.map((child: any) => child.data.RowID) : [],
-            previousId: data[index - 1]?.data?.data.RowID,
-            nextId: data[index + 1]?.data?.data.RowID,
+            previousId: data[index - 1]?.data?.RowID,
+            nextId: data[index + 1]?.data?.RowID,
             parentId,
             level,
         });
@@ -21,6 +21,14 @@ const loadRow = (data: any[], level: number = 1, parentId?: number) => {
             loadRow(e.children, level + 1, e.data.RowID);
     });
 }
+
+const loadConfig = (maxId: number, headId: number) => {
+    rowHeadId = headId;
+    maxRowId = maxId;
+}
+
+const getMaxRowId = () => maxRowId;
+const getRowHeadId = () => rowHeadId;
 
 const getRow = (rowId: number): IRecord => {
     const rowData = rowMap.get(rowId);
@@ -68,12 +76,13 @@ const addNext = (rowId: number, data: Record<string, any>, isNewRow: boolean = t
     if (row.parentId) {
         const parentRow = getRow(row.parentId);
         newRow.parentId = parentRow.data.RowID;
-        parentRow.children.splice(parentRow.children.indexOf(row.data.RowID), 0, newRow.data.RowID);
+        parentRow.children.splice(parentRow.children.indexOf(row.data.RowID) + 1, 0, newRow.data.RowID);
     }
     newRow.level = row.level;
     newRow.previousId = row.data.RowID;
     row.nextId = newRow.data.RowID;
     rowMap.set(newRow.data.RowID, newRow);
+    return newRow.data.RowID;
 }
 const addChild = (rowId: number, data: Record<string, any>, isNewRow: boolean = true) => {
     const row = getRow(rowId);
@@ -81,8 +90,7 @@ const addChild = (rowId: number, data: Record<string, any>, isNewRow: boolean = 
         throw errors.MaxRowLevel;
     }
     if (row.children && row.children[0]) {
-        addNext(row.children[row.children.length - 1], data, isNewRow);
-        return;
+        return addNext(row.children[row.children.length - 1], data, isNewRow);
     }
     const newRow: IRecord = {
         data,
@@ -93,6 +101,7 @@ const addChild = (rowId: number, data: Record<string, any>, isNewRow: boolean = 
     newRow.parentId = rowId;
     row.children.push(newRow.data.RowID);
     rowMap.set(newRow.data.RowID, newRow);
+    return newRow.data.RowID;
 }
 
 const removeRow = (rowId: number) => {
@@ -111,6 +120,10 @@ const removeRow = (rowId: number) => {
     if (row.parentId) {
         const parentRow = getRow(row.parentId);
         parentRow.children.splice(parentRow.children.indexOf(rowId), 1);
+    }
+
+    if (rowId === rowHeadId && row.nextId) {
+        rowHeadId = row.nextId;
     }
     rowMap.delete(rowId);
 }
@@ -132,19 +145,49 @@ const moveAsNext = (rowId: number, previousId: number) => {
     addNext(previousId, row.data, false);
 }
 
+const editRow = (data: Record<string, any>) => {
+    const row = getRow(data.RowID);
+    row.data = { ...data };
+}
+
 const validateRowData = (data: Record<string, any>, columns: IColumnInfo[], validateData: (columnInfo: IColumnInfo, value: any) => void) => {
     columns.forEach(col => {
         validateData(col, data[col.columnName]);
     });
-
     Object.keys(data).map(key => {
-        if(!columns.find(col => col.columnName === key))
+        if (!columns.find(col => col.columnName === key))
             throw errors.InvalidRowData;
+    });
+}
+
+const onAddColumn = (column: IColumnInfo) => {
+    [...rowMap.values()].forEach(row => row.data[column.columnName] = column.defaultValue);
+}
+
+const onUpdateColumn = (oldColumn: IColumnInfo, newColumn: IColumnInfo, castData: (columnInfo: IColumnInfo, value: any) => any) => {
+    const isChangeColumnName = oldColumn.columnName != newColumn.columnName;
+    const isChangeDataType = oldColumn.dataType != newColumn.dataType;
+    if (isChangeColumnName || isChangeDataType) {
+        [...rowMap.values()].forEach(row => {
+            row.data[newColumn.columnName] = isChangeDataType ? castData(newColumn, row.data[oldColumn.columnName]) : row.data[oldColumn.columnName];
+            if (isChangeColumnName) {
+                delete row.data[oldColumn.columnName];
+            }
+        })
+    }
+}
+
+const onDeleteColumn = (columnName: string) => {
+    [...rowMap.values()].forEach(row => {
+        delete row.data[columnName];
     });
 }
 
 export default {
     loadRow,
+    loadConfig,
+    getMaxRowId,
+    getRowHeadId,
     getRowData,
     getRowsData,
     addNext,
@@ -153,4 +196,8 @@ export default {
     moveAsChild,
     moveAsNext,
     validateRowData,
+    onAddColumn,
+    onUpdateColumn,
+    onDeleteColumn,
+    editRow,
 } as const;

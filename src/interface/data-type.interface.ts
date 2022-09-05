@@ -1,8 +1,7 @@
-
-export interface IDataType {
-    defaultValue: string;
-    cast(value: any): any;
-    validate(value: any): void;
-    toRawData(): any;
-    getSymbol(): string;
+export enum DataType {
+    Text = "Text",
+    Num = "Num",
+    Bool = "Boolean",
+    Date = "Date",
+    Enum = "DropDownList",
 }
