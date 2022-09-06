@@ -2,12 +2,12 @@ import express, { NextFunction, Request, Response } from "express";
 import "express-async-errors";
 import bodyParser from "body-parser";
 import session from "express-session";
-import controllers from "@controllers/controllers";
 import mockDb from "@db/mockDb";
 import rowService from "@services/row.service";
 import columnService from "@services/column.service";
 import Graceful from "node-graceful";
 import errors from "@shared/errors";
+import router from "@routes/routes";
 
 let sessionId = 1;
 const app = express();
@@ -17,9 +17,11 @@ app.use(session({
   cookie: { secure: true, maxAge: 60000 },
   genid: () => (sessionId++).toString(),
   rolling: true,
+  resave: false,
+  saveUninitialized: true,
 }));
 
-app.use("/api", controllers);
+app.use("/api", router);
 
 app.use((
   error: Error,

@@ -86,9 +86,13 @@
       ],
       "@controllers/*": [
         "src/controllers/*"
+      ],
+      "@routes/*": [
+        "src/routes/*"
       ]
     },
-    "useUnknownInCatchVariables": false
+    "useUnknownInCatchVariables": false,
+    "typeRoots": ["./node_modules/@types", "./src/types"]
   },
   "include": [
     "src/**/*.ts",

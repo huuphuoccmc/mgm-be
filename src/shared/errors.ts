@@ -14,11 +14,11 @@ const errors = {
     },
     MaxRowLevel: {
         code: -101,
-        message: ""
+        message: "Reach Limit Parent-Child Level"
     },
     LeadToOrphanRow: {
         code: -102,
-        message: ""
+        message: "Lead To Orphan Row"
     },
     InvalidRowData: {
         code: -103,
@@ -26,19 +26,19 @@ const errors = {
     },
     DuplicateColumnName: {
         code: -200,
-        message: "",
+        message: "Duplicate column name",
     },
     InvalidColumnName: {
         code: -201,
-        message: "",
+        message: "Invalid column name",
     },
     InvalidDataType: {
         code: -300,
-        message: "",
+        message: "Invalid Datatype",
     },
     ColumnNotFound: {
         code: -301,
-        message: "",
+        message: "Column Not Found",
     }
 } as const;
 

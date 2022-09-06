@@ -106,7 +106,7 @@ const addChild = (rowId: number, data: Record<string, any>, isNewRow: boolean = 
 
 const removeRow = (rowId: number) => {
     const row = getRow(rowId);
-    if (row.children)
+    if (row.children && row.children.length !== 0)
         throw errors.LeadToOrphanRow;
 
     if (row.nextId) {
@@ -114,7 +114,7 @@ const removeRow = (rowId: number) => {
     }
 
     if (row.previousId) {
-        getRow(row.previousId)
+        getRow(row.previousId).nextId = row.nextId;
     }
 
     if (row.parentId) {
@@ -140,7 +140,6 @@ const moveAsChild = (rowId: number, parentId: number) => {
 const moveAsNext = (rowId: number, previousId: number) => {
     getRow(previousId);
     const row = getRow(rowId);
-
     removeRow(rowId);
     addNext(previousId, row.data, false);
 }
